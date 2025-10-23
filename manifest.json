@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "AI Dictionary for Chrome",
+  "version": "0.1.0",
+  "description": "Hotkey to show a dictionary popup for the current selection, with context.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "contextMenus",
+    "commands"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js", "overlay.js", "api.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "commands": {
+    "define-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D",
+        "mac": "Command+Shift+D"
+      },
+      "description": "Show dictionary popup for current selection"
+    }
+  }
+}
