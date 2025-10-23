@@ -19,14 +19,15 @@ async function handleDefine() {
   // Gather ±N characters of context from surrounding text nodes
   const contextChars = 80;
   const { before, after } = getSurroundingText(range, contextChars);
-  const context = `${before}${focus}${after}`.trim();
+  const context = `${before}**${focus}**${after}`.trim();
 
   // Anchor rect for popup (viewport coordinates)
   const rect = getRangeRect(range);
 
   window.__quickDefine.showLoading(rect);
   try {
-    const formatted = await window.__quickDefine.apiLookup(focus, context);
+    const pageTitle = document.title || "";
+    const formatted = await window.__quickDefine.apiLookup(focus, context, pageTitle);
     window.__quickDefine.showResult(formatted, rect);
   } catch (e) {
     window.__quickDefine.showResult(`[Error]\n***Definition:*** ${e.message || e}`, rect);

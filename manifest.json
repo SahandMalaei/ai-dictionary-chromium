@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["*://*/*"],
-      "js": ["content.js", "overlay.js", "api.js"],
+      "js": ["config.js", "content.js", "overlay.js", "api.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle",
       "all_frames": true

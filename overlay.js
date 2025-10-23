@@ -16,14 +16,14 @@
       position: absolute;
       max-width: 520px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 13px;
+      font-size: 15px;
       line-height: 1.4;
       background: #f9fafb;
       color: #111827;
       border: 1px solid rgba(0,0,0,.15);
       border-radius: 12px;
       box-shadow: 0 12px 28px rgba(0,0,0,.15);
-      padding: 12px;
+      padding: 15px;
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -55,7 +55,7 @@
     wrap.appendChild(pre);
     const foot = document.createElement('div');
     foot.className = 'qd-footer';
-    foot.textContent = 'Press Esc / click outside to close';
+    foot.textContent = 'Esc / click outside to close';
     wrap.appendChild(foot);
 
     wrap.classList.remove('qd-hide');
