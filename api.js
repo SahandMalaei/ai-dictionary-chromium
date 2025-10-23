@@ -3,11 +3,50 @@
   const GEMINI_MODEL = "gemini-2.5-flash-lite";
   const GEMINI_ENDPOINT = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent`;
 
-  async function apiLookup(focus, context, pageTitle) {
-    const { geminiApiKey, targetLanguage = "en-US" } = window.__quickDefineConfig || {};
-    if (!geminiApiKey) {
-      throw new Error("Gemini API key missing. Set window.__quickDefineConfig.geminiApiKey.");
+  function readStoredApiKey() {
+    return new Promise((resolve) => {
+      if (!chrome?.storage?.local) {
+        resolve("");
+        return;
+      }
+      chrome.storage.local.get(["geminiApiKey"], (result) => {
+        if (chrome.runtime?.lastError) {
+          console.warn("quick-define: storage.get error", chrome.runtime.lastError);
+          resolve("");
+          return;
+        }
+        const key = result && typeof result.geminiApiKey === "string" ? result.geminiApiKey.trim() : "";
+        resolve(key);
+      });
+    });
+  }
+
+  async function ensureApiKey(config) {
+    if (config?.geminiApiKey) return config.geminiApiKey;
+
+    const stored = await readStoredApiKey();
+    if (stored) {
+      config.geminiApiKey = stored;
+      return stored;
     }
+
+    if (window.__quickDefine?.promptForApiKey) {
+      try {
+        const key = await window.__quickDefine.promptForApiKey();
+        if (config) config.geminiApiKey = key;
+        return key;
+      } catch (err) {
+        throw new Error("Lookup cancelled: Gemini API key required.");
+      }
+    }
+
+    throw new Error("Gemini API key missing. Open the popup to add one.");
+  }
+
+  async function apiLookup(focus, context, pageTitle) {
+    const config = window.__quickDefineConfig || {};
+    const targetLanguage = config?.targetLanguage || "English - United States";
+    const geminiApiKey = await ensureApiKey(config);
 
     const payload = {
       contents: [
@@ -46,7 +85,7 @@
     if (!candidate) {
       throw new Error("Gemini response missing text content");
     }
-    return focus + " " + candidate.trim();
+    return focus + " " + candidate.trim() + "\n\n" + context;
   }
 
   window.__quickDefine.apiLookup = apiLookup;
