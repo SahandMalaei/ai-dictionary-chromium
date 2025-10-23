@@ -16,9 +16,9 @@ async function handleDefine() {
     return;
   }
 
-  // Gather ±N characters of context from surrounding text nodes
-  const contextChars = 80;
-  const { before, after } = getSurroundingText(range, contextChars);
+  // Gather a limited number of words from the same text nodes for context
+  const contextWordCount = 12;
+  const { before, after } = getSurroundingText(range, contextWordCount);
   const context = `${before}**${focus}**${after}`.trim();
 
   // Anchor rect for popup (viewport coordinates)
@@ -52,53 +52,39 @@ window.addEventListener("mousemove", (e) => {
   window.__quickDefine.lastMouse = {x: e.clientX, y: e.clientY};
 }, {passive: true});
 
-// Walk text nodes to collect ±N chars around the range
-function getSurroundingText(range, N) {
+// Collect a limited number of words on each side within the same text nodes
+function getSurroundingText(range, wordCount) {
   const startNode = range.startContainer;
-  const endNode   = range.endContainer;
-  const isText = (n) => n && n.nodeType === Node.TEXT_NODE;
+  const endNode = range.endContainer;
+  const isText = (node) => node && node.nodeType === Node.TEXT_NODE;
 
-  // Serialize selection to know offsets
-  let selected = range.toString();
+  const takeTrailingWords = (text) => {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return "";
+    return words.slice(Math.max(0, words.length - wordCount)).join(" ");
+  };
 
-  // Collect before
-  let before = "";
-  {
-    let node = startNode;
-    let offset = range.startOffset;
-    // Pull from current text node backwards
-    if (isText(node)) {
-      before = node.textContent.slice(Math.max(0, offset - N), offset);
-    }
-    // If still short, walk previous text nodes
-    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    walker.currentNode = isText(node) ? node : range.commonAncestorContainer;
-    // Move back through nodes
-    while (before.length < N && walker.previousNode()) {
-      const t = walker.currentNode.textContent.trim();
-      if (t) before = t.slice(-Math.min(N - before.length, t.length)) + before;
-    }
-    before = trimWhitespace(before);
-  }
+  const takeLeadingWords = (text) => {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return "";
+    return words.slice(0, wordCount).join(" ");
+  };
 
-  // Collect after
-  let after = "";
-  {
-    let node = endNode;
-    let offset = range.endOffset;
-    if (isText(node)) {
-      after = node.textContent.slice(offset, offset + N);
-    }
-    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    walker.currentNode = isText(node) ? node : range.commonAncestorContainer;
-    while (after.length < N && walker.nextNode()) {
-      const t = walker.currentNode.textContent.trim();
-      if (t) after += t.slice(0, Math.min(N - after.length, t.length));
-    }
-    after = trimWhitespace(after);
-  }
+  const before = (() => {
+    if (!isText(startNode)) return "";
+    const textBefore = startNode.textContent.slice(0, range.startOffset);
+    return takeTrailingWords(textBefore);
+  })();
 
-  // Clean up line breaks
-  function trimWhitespace(s) { return s.replace(/\s+/g, " ").trimStart(); }
-  return { before: before ? before + " " : "", after: after ? " " + after : "" };
+  const after = (() => {
+    if (!isText(endNode)) return "";
+    const textAfter = endNode.textContent.slice(range.endOffset);
+    return takeLeadingWords(textAfter);
+  })();
+
+  return {
+    before: before ? `${before} ` : "",
+    after: after ? ` ${after}` : ""
+  };
 }
+

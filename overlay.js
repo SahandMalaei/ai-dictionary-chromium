@@ -29,7 +29,7 @@
     }
     .qd-hide { display: none; }
     .qd-footer {
-      margin-top: 8px; opacity: .6; font-size: 12px;
+      margin-top: 12px; opacity: .6; font-size: 12px;
     }
   `;
   shadow.appendChild(style);

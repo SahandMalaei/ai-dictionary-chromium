@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AI Dictionary for Chrome",
-  "version": "0.1.0",
-  "description": "Hotkey to show a dictionary popup for the current selection, with context.",
+  "name": "AI Dictionary for Chromium",
+  "version": "1.0.0",
+  "description": "Adds a context menu item to bring up a an AI dictionary popup",
   "permissions": [
     "activeTab",
     "scripting",
@@ -29,8 +29,8 @@
   "commands": {
     "define-selection": {
       "suggested_key": {
-        "default": "Ctrl+Shift+D",
-        "mac": "Command+Shift+D"
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
       },
       "description": "Show dictionary popup for current selection"
     }
