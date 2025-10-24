@@ -1,7 +1,7 @@
 # AI Dictionary: Instant Dictionary for Google Chrome and Microsoft Edge
 
 AI Dictionary is a plugin for Google Chrome and Microsoft Edge that can have a transformative effect on your reading and language learning. I originally built it for my personal use, out of frustration with exisiting dictionaries. These are the benefits of this plugin over more traditional dictionaries:
-1. This plugin gives you the definition of the selected word(s) **in the context** of its surrounding words. Traditional dictionaries show you several definitions of the word(s), and you have to decide which one is correct.
+1. This plugin gives you the definition of the selected word(s) **in the context** of its surrounding words. Traditional dictionaries show you several definitions of the word(s), and you have to decide which one is right for the context.
 2. Allows you to select multiple words, phrasal verbs, and idioms. That's something traditional dictionaries struggle with.
 3. Can give you the definition of technical terms and even fictional words, since it has access to basically all the information available online.
 4. It's very simple to use. Select the word(s), right click and select "Define Selection". That's it. It's the most seamless and instant dictionary solution I have seen.
