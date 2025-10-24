@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Dictionary for Chromium",
   "version": "1.0.0",
-  "description": "Adds a context menu item to bring up a an AI dictionary popup",
+  "description": "Adds a context menu item to bring up an AI dictionary popup",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-32.png",
