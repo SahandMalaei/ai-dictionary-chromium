@@ -85,7 +85,7 @@
     if (!candidate) {
       throw new Error("Gemini response missing text content");
     }
-    return focus + " " + candidate.trim() + "\n\n" + context;
+    return focus + " " + candidate.trim();
   }
 
   window.__quickDefine.apiLookup = apiLookup;

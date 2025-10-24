@@ -1,6 +1,19 @@
 // Message entrypoint
 chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
-  if (msg?.type === "DEFINE_SELECTION") handleDefine();
+  if (!msg || !msg.type) return;
+  switch (msg.type) {
+    case "DEFINE_SELECTION":
+      handleDefine();
+      break;
+    case "SHOW_API_KEY_PROMPT":
+      handleApiKeyPromptRequest();
+      break;
+    case "CLEAR_STORED_DATA":
+      handleClearStoredData(msg);
+      break;
+    default:
+      break;
+  }
 });
 
 async function handleDefine() {
@@ -34,7 +47,51 @@ async function handleDefine() {
   }
 }
 
-// Returns the selection’s first client rect (fallback to mouse if collapsed)
+async function handleApiKeyPromptRequest() {
+  const prompt = window.__quickDefine?.promptForApiKey;
+  const toast = window.__quickDefine?.showToast;
+
+  if (typeof prompt !== "function") {
+    if (typeof toast === "function") {
+      toast("API key prompt unavailable on this page.");
+    }
+    return;
+  }
+
+  try {
+    const key = await prompt();
+    if (key && typeof toast === "function") {
+      toast("API key saved.");
+    }
+  } catch (err) {
+    if (err && /cancelled/i.test(String(err.message ?? ""))) {
+      // User cancelled: no toast.
+      return;
+    }
+    if (typeof toast === "function") {
+      toast(err?.message || "Unable to save API key.");
+    }
+  }
+}
+
+function handleClearStoredData(msg) {
+  if (window.__quickDefineConfig) {
+    window.__quickDefineConfig.geminiApiKey = null;
+  }
+  const toast = window.__quickDefine?.showToast;
+  if (typeof window.__quickDefine?.hideResult === "function") {
+    window.__quickDefine.hideResult();
+  }
+  if (typeof toast === "function") {
+    if (msg?.success) {
+      toast("Saved data cleared.");
+    } else {
+      toast(msg?.error || "Unable to clear saved data.");
+    }
+  }
+}
+
+// Returns the selection's first client rect (fallback to mouse if collapsed)
 function getRangeRect(range) {
   const rects = range.getClientRects();
   let r = rects.length ? rects[0] : range.getBoundingClientRect();

@@ -74,6 +74,7 @@
       border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
+      box-sizing: border-box;
     }
     .qd-prompt input:focus {
       outline: 2px solid rgba(59, 130, 246, 0.35);
@@ -130,7 +131,7 @@
   promptForm.appendChild(promptTitle);
 
   const promptDescription = document.createElement('p');
-  promptDescription.textContent = 'Paste your Google AI Studio API key so lookups can run.';
+  promptDescription.textContent = 'Enter your Google AI Studio API key so lookups can run.';
   promptForm.appendChild(promptDescription);
 
   const promptLabel = document.createElement('label');
@@ -142,7 +143,7 @@
   promptInput.type = 'password';
   promptInput.id = 'quick-define-api-key';
   promptInput.name = 'apiKey';
-  promptInput.placeholder = 'AIza...';
+  promptInput.placeholder = 'API Key...';
   promptInput.autocomplete = 'off';
   promptInput.spellcheck = false;
   promptForm.appendChild(promptInput);
@@ -287,6 +288,11 @@
     resetPromptForm();
     promptBackdrop.classList.remove('qd-hide');
 
+    const existingKey = window.__quickDefineConfig?.geminiApiKey || "";
+    if (existingKey) {
+      promptInput.value = existingKey;
+    }
+
     const state = {};
     state.promise = new Promise((resolve, reject) => {
       state.resolve = resolve;
@@ -296,6 +302,9 @@
 
     requestAnimationFrame(() => {
       promptInput.focus();
+      if (promptInput.value) {
+        promptInput.select();
+      }
     });
 
     return state.promise;
@@ -341,5 +350,4 @@
     apiLookup: null // set by api.js
   };
 })();
-
 
