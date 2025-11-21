@@ -1,6 +1,7 @@
 // Message entrypoint
 chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
   if (!msg || !msg.type) return;
+  const isTop = window === window.top;
   switch (msg.type) {
     case "DEFINE_SELECTION":
       handleDefine();
@@ -12,7 +13,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
       handleClearStoredData(msg);
       break;
     case "SUMMARIZE_PAGE":
-      handleSummarizePage();
+      if (isTop) {
+        handleSummarizePage();
+      }
       break;
     default:
       break;
@@ -94,17 +97,23 @@ function handleClearStoredData(msg) {
   }
 }
 
+let isSummarizing = false;
+
 async function handleSummarizePage() {
+  if (isSummarizing) return;
+  isSummarizing = true;
   const summarize = window.__quickDefine?.summarizePage;
   const toast = window.__quickDefine?.showToast;
   if (typeof summarize !== "function") {
     if (typeof toast === "function") toast("Summaries unavailable on this page.");
+    isSummarizing = false;
     return;
   }
 
   const pageText = getPageContent();
   if (!pageText) {
     if (typeof toast === "function") toast("No readable content found.");
+    isSummarizing = false;
     return;
   }
 
@@ -122,6 +131,8 @@ async function handleSummarizePage() {
       const msg = err?.message || "Unable to summarize.";
       toast(msg);
     }
+  } finally {
+    isSummarizing = false;
   }
 }
 
@@ -265,12 +276,16 @@ function buildSummaryDocument(summaryHtml, pageTitle, pageUrl) {
 
 function openSummaryTab(summaryHtml, pageTitle, pageUrl) {
   const doc = buildSummaryDocument(summaryHtml, pageTitle, pageUrl);
-  const blob = new Blob([doc], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  const opened = window.open(url, "_blank", "noopener");
-  if (!opened && typeof window.__quickDefine?.showToast === "function") {
-    window.__quickDefine.showToast("Allow popups to view the summary.");
-  }
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  chrome.runtime.sendMessage({ type: "OPEN_SUMMARY_TAB", html: doc }, (resp) => {
+    if (chrome.runtime.lastError || resp?.ok === false) {
+      const url = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
+      const fallback = window.open(url, "_blank", "noopener");
+      if (!fallback && typeof window.__quickDefine?.showToast === "function") {
+        window.__quickDefine.showToast("Allow popups to view the summary.");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return;
+    }
+  });
 }
 

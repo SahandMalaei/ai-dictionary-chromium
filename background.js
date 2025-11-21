@@ -2,6 +2,8 @@ const MENU_SELECTION = "quick-define-selection";
 const MENU_SET_API_KEY = "quick-define-set-api-key";
 const MENU_CLEAR_DATA = "quick-define-clear-data";
 const MENU_SUMMARIZE = "quick-define-summarize-page";
+const SUMMARY_SCRIPTS = ["config.js", "overlay.js", "api.js", "content.js"];
+const SUMMARY_STYLES = ["overlay.css"];
 
 function createMenuItem(options) {
   chrome.contextMenus.create(options, () => {
@@ -122,4 +124,49 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     default:
       break;
   }
+});
+
+async function openSummaryTabFromBackground(html) {
+  const tab = await chrome.tabs.create({ url: "about:blank" });
+  const target = { tabId: tab.id };
+
+  // Write summary document
+  await chrome.scripting.executeScript({
+    target,
+    world: "MAIN",
+    func: (docHtml) => {
+      document.open();
+      document.write(docHtml);
+      document.close();
+    },
+    args: [html]
+  });
+
+  // Inject styles first
+  await chrome.scripting.insertCSS({
+    target,
+    files: SUMMARY_STYLES
+  });
+
+  // Inject our content/overlay stack so the dictionary popup works on the summary tab.
+  await chrome.scripting.executeScript({
+    target,
+    files: SUMMARY_SCRIPTS
+  });
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "OPEN_SUMMARY_TAB" && typeof message?.html === "string") {
+    (async () => {
+      try {
+        await openSummaryTabFromBackground(message.html);
+        sendResponse({ ok: true });
+      } catch (err) {
+        console.warn("quick-define: failed to open summary tab", err);
+        sendResponse({ ok: false, error: err?.message || "Unable to open summary tab." });
+      }
+    })();
+    return true; // async response
+  }
+  return false;
 });
