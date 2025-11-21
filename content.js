@@ -76,7 +76,7 @@ async function handleApiKeyPromptRequest() {
 
 function handleClearStoredData(msg) {
   if (window.__quickDefineConfig) {
-    window.__quickDefineConfig.geminiApiKey = null;
+    window.__quickDefineConfig.apiKey = null;
   }
   const toast = window.__quickDefine?.showToast;
   if (typeof window.__quickDefine?.hideResult === "function") {

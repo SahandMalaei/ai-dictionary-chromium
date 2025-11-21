@@ -127,11 +127,11 @@
   promptForm.className = 'qd-prompt';
 
   const promptTitle = document.createElement('h2');
-  promptTitle.textContent = 'Enter Gemini API key';
+  promptTitle.textContent = 'Enter OpenAI-Compatible API key';
   promptForm.appendChild(promptTitle);
 
   const promptDescription = document.createElement('p');
-  promptDescription.textContent = 'Enter your Google AI Studio API key so lookups can run.';
+  promptDescription.textContent = 'Enter your OpenRouter (or other OpenAI-compatible) API key so lookups can run.';
   promptForm.appendChild(promptDescription);
 
   const promptLabel = document.createElement('label');
@@ -248,7 +248,7 @@
     resetPromptForm();
     promptBackdrop.classList.add('qd-hide');
     if (window.__quickDefineConfig) {
-      window.__quickDefineConfig.geminiApiKey = key;
+      window.__quickDefineConfig.apiKey = key;
     }
     if (state && state.resolve) state.resolve(key);
   }
@@ -266,13 +266,15 @@
 
     const applyKey = () => finishPrompt(key);
     if (chrome?.storage?.local) {
-      chrome.storage.local.set({geminiApiKey: key}, () => {
+      const toStore = { apiKey: key, openRouterApiKey: key };
+      chrome.storage.local.set(toStore, () => {
         if (chrome.runtime?.lastError) {
           promptError.textContent = chrome.runtime.lastError.message || "Unable to save API key.";
           setPromptBusy(false);
           return;
         }
-        applyKey();
+        // clean up any legacy keys when possible
+        chrome.storage.local.remove(["geminiApiKey"], () => applyKey());
       });
     } else {
       applyKey();
@@ -288,7 +290,7 @@
     resetPromptForm();
     promptBackdrop.classList.remove('qd-hide');
 
-    const existingKey = window.__quickDefineConfig?.geminiApiKey || "";
+    const existingKey = window.__quickDefineConfig?.apiKey || "";
     if (existingKey) {
       promptInput.value = existingKey;
     }
@@ -350,4 +352,3 @@
     apiLookup: null // set by api.js
   };
 })();
-

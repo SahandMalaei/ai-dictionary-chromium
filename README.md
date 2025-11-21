@@ -14,8 +14,10 @@ To use this plugin, You'll need to do a few things:
 
 1. Grab the [latest release of this plugin](https://github.com/SahandMalaei/ai-dictionary-chromium/releases/latest), and unpack the zip file somewhere.
 2. Go to your browser's extenstions page. In Google Chrome that's "chrome://extensions". In Edge, that's "edge://extensions". Enable "Developer Mode". Select "Load Unpacked", and point to the folder of the downloaded plugin. The plugin is now installed.
-3. Acquire an API key from [Google AI Studio](https://aistudio.google.com/api-keys). The free tier will most probably suffice for personal use.
+3. Acquire an API key from an OpenAI-compatible provider. By default the extension calls [OpenRouter](https://openrouter.ai/keys), so that is the easiest option.
 4. Select some word(s)/text, right click, and choose "Define Selection". You can also press the combination "Ctrl + Shift + L" to achieve the same thing. As this is your first time calling the dictionary, a dialog will open asking you to enter your API key. Enter the API key you acquired in the previous step, and you are all set!
+
+The extension sends one OpenAI-compatible `/chat/completions` request per lookup (default base: `https://openrouter.ai/api/v1`, default model: `google/gemini-2.0-flash-lite-preview-02-05`).
 
 ## What's Next?
 

@@ -89,7 +89,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       }
       break;
     case MENU_CLEAR_DATA:
-      chrome.storage.local.remove(["geminiApiKey"], () => {
+      chrome.storage.local.remove(["apiKey", "openRouterApiKey", "geminiApiKey"], () => {
         const success = !chrome.runtime.lastError;
         const payload = {
           type: "CLEAR_STORED_DATA",
