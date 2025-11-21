@@ -101,6 +101,40 @@
     return "";
   }
 
+  function clipText(text, maxChars = 12000) {
+    if (typeof text !== "string") return "";
+    const trimmed = text.trim();
+    if (trimmed.length <= maxChars) return trimmed;
+    return trimmed.slice(0, maxChars);
+  }
+
+  function buildSummaryMessages(pageText, pageTitle, pageUrl, targetLanguage) {
+    const clipped = clipText(pageText);
+    const systemContent = [
+      "You are an executive briefing assistant for a CEO with limited time.",
+      "Write a concise, actionable summary of the page content in HTML. Do not include body/html/head tags.",
+      "Structure exactly with these sections when relevant:",
+      "<h2>Why this matters</h2><ul>bullets</ul>",
+      "<h2>Deep dive</h2><ol>2-3 short items</ol>",
+      "<h2>Key quotes</h2><blockquote><p>\"quote\"</p><p><em>Context: ...</em></p></blockquote>",
+      "Only include the Key quotes section if you have 1-3 impactful quotes; otherwise omit it.",
+      "Stay under ~180 words total. Keep sentences tight and avoid fluff.",
+      `Respond in ${targetLanguage}.`
+    ].join(" ");
+
+    const userContent = [
+      `Page title: ${pageTitle || "Untitled"}`,
+      `URL: ${pageUrl || ""}`,
+      "Page text (may be truncated):",
+      clipped
+    ].join("\n");
+
+    return [
+      { role: "system", content: systemContent },
+      { role: "user", content: userContent }
+    ];
+  }
+
   async function apiLookup(focus, context, pageTitle) {
     const config = window.__quickDefineConfig || {};
     const targetLanguage = config?.targetLanguage || "English - United States";
@@ -140,5 +174,45 @@
     return focus + " " + text;
   }
 
+  async function summarizePage(pageText, pageTitle, pageUrl) {
+    const config = window.__quickDefineConfig || {};
+    const targetLanguage = config?.targetLanguage || "English - United States";
+    const apiKey = await ensureApiKey(config);
+    const apiBase = ensureApiBase(config);
+    const model = ensureModel(config);
+
+    const payload = {
+      model,
+      messages: buildSummaryMessages(pageText, pageTitle, pageUrl, targetLanguage),
+      temperature: 0.35
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    };
+    if (apiBase.includes("openrouter.ai")) {
+      headers["HTTP-Referer"] = window.location?.origin || "https://openrouter.ai";
+      headers["X-Title"] = "AI Dictionary";
+    }
+
+    const resp = await fetch(`${apiBase}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      const t = await resp.text();
+      throw new Error(`HTTP ${resp.status} ${t || ""}`);
+    }
+    const body = await resp.json();
+    const text = extractCompletionText(body)?.trim() || "";
+    if (!text) {
+      throw new Error("Response missing text content");
+    }
+    return text;
+  }
+
   window.__quickDefine.apiLookup = apiLookup;
+  window.__quickDefine.summarizePage = summarizePage;
 })();

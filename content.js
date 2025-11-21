@@ -11,6 +11,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
     case "CLEAR_STORED_DATA":
       handleClearStoredData(msg);
       break;
+    case "SUMMARIZE_PAGE":
+      handleSummarizePage();
+      break;
     default:
       break;
   }
@@ -91,6 +94,37 @@ function handleClearStoredData(msg) {
   }
 }
 
+async function handleSummarizePage() {
+  const summarize = window.__quickDefine?.summarizePage;
+  const toast = window.__quickDefine?.showToast;
+  if (typeof summarize !== "function") {
+    if (typeof toast === "function") toast("Summaries unavailable on this page.");
+    return;
+  }
+
+  const pageText = getPageContent();
+  if (!pageText) {
+    if (typeof toast === "function") toast("No readable content found.");
+    return;
+  }
+
+  if (typeof toast === "function") {
+    toast("Summarizing page...");
+  }
+
+  try {
+    const title = document.title || "";
+    const url = window.location?.href || "";
+    const summaryHtml = await summarize(pageText, title, url);
+    openSummaryTab(summaryHtml, title, url);
+  } catch (err) {
+    if (typeof toast === "function") {
+      const msg = err?.message || "Unable to summarize.";
+      toast(msg);
+    }
+  }
+}
+
 // Returns the selection's first client rect (fallback to mouse if collapsed)
 function getRangeRect(range) {
   const rects = range.getClientRects();
@@ -143,5 +177,100 @@ function getSurroundingText(range, wordCount) {
     before: before ? `${before} ` : "",
     after: after ? ` ${after}` : ""
   };
+}
+
+function getPageContent() {
+  const pick = (selector) => {
+    const el = document.querySelector(selector);
+    return el?.innerText || "";
+  };
+
+  const candidates = [
+    pick("article"),
+    pick("main"),
+    document.body?.innerText || ""
+  ];
+
+  const content = candidates.find((text) => text && text.trim().length > 300) || candidates[0] || "";
+  const cleaned = content.replace(/\s+/g, " ").trim();
+  const maxChars = 16000;
+  return cleaned.length > maxChars ? cleaned.slice(0, maxChars) : cleaned;
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildSummaryDocument(summaryHtml, pageTitle, pageUrl) {
+  const safeTitle = escapeHtml(pageTitle || "Summary");
+  const safeUrl = escapeHtml(pageUrl || "");
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Summary - ${safeTitle}</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    body {
+      margin: 0 auto;
+      padding: 32px 22px 48px;
+      max-width: 860px;
+      font-family: "SF Pro Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      line-height: 1.6;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b1220; color: #e2e8f0; }
+      a { color: #7cc4ff; }
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: -0.4px;
+    }
+    .meta {
+      margin: 6px 0 20px;
+      color: #475569;
+      font-size: 14px;
+    }
+    section { margin-bottom: 18px; }
+    h2 { margin: 16px 0 8px; font-size: 20px; }
+    ul, ol { padding-left: 20px; margin: 6px 0 12px; }
+    blockquote {
+      margin: 10px 0;
+      padding: 12px 14px;
+      border-left: 4px solid #2563eb;
+      background: rgba(37, 99, 235, 0.08);
+      border-radius: 6px;
+    }
+    em { color: inherit; opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <h1>Summary</h1>
+  <div class="meta">${safeTitle}${safeUrl ? ` - <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open original</a>` : ""}</div>
+  <article class="qd-summary">${summaryHtml}</article>
+</body>
+</html>`;
+}
+
+function openSummaryTab(summaryHtml, pageTitle, pageUrl) {
+  const doc = buildSummaryDocument(summaryHtml, pageTitle, pageUrl);
+  const blob = new Blob([doc], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener");
+  if (!opened && typeof window.__quickDefine?.showToast === "function") {
+    window.__quickDefine.showToast("Allow popups to view the summary.");
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 

@@ -1,6 +1,7 @@
 const MENU_SELECTION = "quick-define-selection";
 const MENU_SET_API_KEY = "quick-define-set-api-key";
 const MENU_CLEAR_DATA = "quick-define-clear-data";
+const MENU_SUMMARIZE = "quick-define-summarize-page";
 
 function createMenuItem(options) {
   chrome.contextMenus.create(options, () => {
@@ -20,6 +21,11 @@ function registerContextMenus() {
     createMenuItem({
       id: MENU_SET_API_KEY,
       title: "Set API Key",
+      contexts: ["action"]
+    });
+    createMenuItem({
+      id: MENU_SUMMARIZE,
+      title: "Summarize",
       contexts: ["action"]
     });
     createMenuItem({
@@ -86,6 +92,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           type: "SHOW_API_KEY_PROMPT",
           source: "contextMenu"
         });
+      }
+      break;
+    case MENU_SUMMARIZE:
+      if (tab?.id) {
+        await sendMessageToTab(tab.id, { type: "SUMMARIZE_PAGE" });
       }
       break;
     case MENU_CLEAR_DATA:
