@@ -235,13 +235,13 @@ function buildSummaryDocument(summaryHtml, pageTitle, pageUrl) {
       padding: 32px 22px 48px;
       max-width: 860px;
       font-family: "SF Pro Text", "Segoe UI", -apple-system, system-ui, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      background: #EDE4DB;
+      color: #000000;
       line-height: 1.6;
     }
     @media (prefers-color-scheme: dark) {
-      body { background: #0b1220; color: #e2e8f0; }
-      a { color: #7cc4ff; }
+      body { background: #EDE4DB; color: #000000; }
+      a { color: #000000; }
     }
     h1 {
       margin: 0;
@@ -259,8 +259,8 @@ function buildSummaryDocument(summaryHtml, pageTitle, pageUrl) {
     blockquote {
       margin: 10px 0;
       padding: 12px 14px;
-      border-left: 4px solid #2563eb;
-      background: rgba(37, 99, 235, 0.08);
+      border-left: 4px solid #EDE4DB;
+      background: #EDE4DB;
       border-radius: 6px;
     }
     em { color: inherit; opacity: 0.85; }

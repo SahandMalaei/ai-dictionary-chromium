@@ -21,13 +21,13 @@ function registerContextMenus() {
       contexts: ["selection"]
     });
     createMenuItem({
-      id: MENU_SET_API_KEY,
-      title: "Set API Key",
+      id: MENU_SUMMARIZE,
+      title: "Summarize",
       contexts: ["action"]
     });
     createMenuItem({
-      id: MENU_SUMMARIZE,
-      title: "Summarize",
+      id: MENU_SET_API_KEY,
+      title: "Set API Key",
       contexts: ["action"]
     });
     createMenuItem({
@@ -88,17 +88,17 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         await sendMessageToTab(tab.id, { type: "DEFINE_SELECTION" });
       }
       break;
+    case MENU_SUMMARIZE:
+      if (tab?.id) {
+        await sendMessageToTab(tab.id, { type: "SUMMARIZE_PAGE" });
+      }
+      break;
     case MENU_SET_API_KEY:
       if (tab?.id) {
         await sendMessageToTab(tab.id, {
           type: "SHOW_API_KEY_PROMPT",
           source: "contextMenu"
         });
-      }
-      break;
-    case MENU_SUMMARIZE:
-      if (tab?.id) {
-        await sendMessageToTab(tab.id, { type: "SUMMARIZE_PAGE" });
       }
       break;
     case MENU_CLEAR_DATA:

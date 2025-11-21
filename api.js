@@ -114,9 +114,10 @@
       "You are an executive briefing assistant for a CEO with limited time.",
       "Write a concise, actionable summary of the page content in HTML. Do not include body/html/head tags.",
       "Structure exactly with these sections when relevant:",
-      "<h2>Why this matters</h2><ul>bullets</ul>",
-      "<h2>Deep dive</h2><ol>2-3 short items</ol>",
+      "<h2>Preface</h2><ul>[Some context for what this is about + Why this is worth reading]</ul>",
+      "<h2>Summary</h2><ul>[3 paragraphs]</ul>",
       "<h2>Key quotes</h2><blockquote><p>\"quote\"</p><p><em>Context: ...</em></p></blockquote>",
+      "<h2>English learning</h2><ol>Up to 5 English words, expressions, idioms, terms, or structures which might be useful for an advanced English learner trying to achieve full native-like speaking and writing abilities</ol>",
       "Only include the Key quotes section if you have 1-3 impactful quotes; otherwise omit it.",
       "Stay under ~180 words total. Keep sentences tight and avoid fluff.",
       `Respond in ${targetLanguage}.`
