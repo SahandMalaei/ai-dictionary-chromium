@@ -111,6 +111,7 @@ async function handleSummarizePage() {
   }
 
   const pageText = getPageContent();
+  const mediaItems = collectMediaFromPage();
   if (!pageText) {
     if (typeof toast === "function") toast("No readable content found.");
     isSummarizing = false;
@@ -125,7 +126,7 @@ async function handleSummarizePage() {
     const title = document.title || "";
     const url = window.location?.href || "";
     const summaryHtml = await summarize(pageText, title, url);
-    openSummaryTab(summaryHtml, title, url);
+    openSummaryTab(summaryHtml, title, url, mediaItems);
   } catch (err) {
     if (typeof toast === "function") {
       const msg = err?.message || "Unable to summarize.";
@@ -190,19 +191,23 @@ function getSurroundingText(range, wordCount) {
   };
 }
 
-function getPageContent() {
+function getContentRoot() {
   const pick = (selector) => {
     const el = document.querySelector(selector);
-    return el?.innerText || "";
+    if (el && typeof el.innerText === "string") {
+      return el;
+    }
+    return null;
   };
 
-  const candidates = [
-    pick("article"),
-    pick("main"),
-    document.body?.innerText || ""
-  ];
+  const candidates = [pick("article"), pick("main"), document.body || null].filter(Boolean);
+  const preferred = candidates.find((el) => el.innerText.trim().length > 300);
+  return preferred || candidates[0] || null;
+}
 
-  const content = candidates.find((text) => text && text.trim().length > 300) || candidates[0] || "";
+function getPageContent() {
+  const root = getContentRoot();
+  const content = root?.innerText || "";
   const cleaned = content.replace(/\s+/g, " ").trim();
   const maxChars = 16000;
   return cleaned.length > maxChars ? cleaned.slice(0, maxChars) : cleaned;
@@ -218,9 +223,138 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-function buildSummaryDocument(summaryHtml, pageTitle, pageUrl) {
+function resolveUrl(url) {
+  if (typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  try {
+    const absolute = new URL(trimmed, document.baseURI).href;
+    if (!/^https?:|^data:|^blob:/i.test(absolute)) return "";
+    return absolute;
+  } catch {
+    return "";
+  }
+}
+
+function isLikelyAd(el) {
+  const marker = `${el.className || ""} ${el.id || ""}`.toLowerCase();
+  return /(\b|_)(ad|ads|advert|sponsor|promo|banner)[\w-]*\b/.test(marker);
+}
+
+function isHiddenOrTiny(el) {
+  const style = window.getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+    return true;
+  }
+  const rect = el.getBoundingClientRect();
+  return rect.width < 40 || rect.height < 40;
+}
+
+function collectMediaFromPage() {
+  const root = getContentRoot();
+  if (!root) return [];
+
+  const media = [];
+  const seen = new Set();
+  const MAX_MEDIA_ITEMS = 12;
+
+  const addItem = (item) => {
+    if (!item?.src) return;
+    if (seen.has(item.src)) return;
+    seen.add(item.src);
+    media.push(item);
+  };
+
+  const images = root.querySelectorAll("img");
+  for (const img of images) {
+    if (media.length >= MAX_MEDIA_ITEMS) break;
+    if (isLikelyAd(img) || isHiddenOrTiny(img)) continue;
+    const src =
+      resolveUrl(img.currentSrc) ||
+      resolveUrl(img.src) ||
+      resolveUrl(img.getAttribute("data-src") || img.getAttribute("data-lazy-src") || "");
+    if (!src) continue;
+    addItem({
+      type: "image",
+      src,
+      alt: (img.alt || "").trim()
+    });
+  }
+
+  const videos = root.querySelectorAll("video");
+  for (const video of videos) {
+    if (media.length >= MAX_MEDIA_ITEMS) break;
+    if (isLikelyAd(video) || isHiddenOrTiny(video)) continue;
+    const src =
+      resolveUrl(video.currentSrc) ||
+      resolveUrl(video.src) ||
+      resolveUrl(video.querySelector("source")?.src || video.getAttribute("data-src") || "");
+    if (!src) continue;
+    addItem({
+      type: "video",
+      src,
+      poster: resolveUrl(video.poster || "")
+    });
+  }
+
+  const iframes = root.querySelectorAll("iframe");
+  for (const frame of iframes) {
+    if (media.length >= MAX_MEDIA_ITEMS) break;
+    if (isLikelyAd(frame) || isHiddenOrTiny(frame)) continue;
+    const src = resolveUrl(frame.src || frame.getAttribute("data-src") || "");
+    if (!src) continue;
+    const host = (() => {
+      try {
+        return new URL(src).hostname || "";
+      } catch {
+        return "";
+      }
+    })();
+    const isVideoHost = /youtube\.com|youtu\.be|vimeo\.com/.test(host);
+    if (!isVideoHost) continue;
+    addItem({
+      type: "embed",
+      src
+    });
+  }
+
+  return media;
+}
+
+function buildMediaSection(mediaItems) {
+  if (!Array.isArray(mediaItems) || mediaItems.length === 0) return "";
+
+  const mediaHtml = mediaItems
+    .map((item) => {
+      const src = escapeHtml(item.src);
+      switch (item.type) {
+        case "image": {
+          const alt = item.alt ? escapeHtml(item.alt) : "Article image";
+          return `<figure class="qd-media-item"><img src="${src}" alt="${alt}">${item.alt ? `<figcaption>${alt}</figcaption>` : ""}</figure>`;
+        }
+        case "video": {
+          const poster = item.poster ? ` poster="${escapeHtml(item.poster)}"` : "";
+          return `<figure class="qd-media-item"><video controls preload="metadata"${poster} src="${src}"></video></figure>`;
+        }
+        case "embed": {
+          return `<div class="qd-media-item qd-media-embed"><iframe src="${src}" loading="lazy" allowfullscreen></iframe></div>`;
+        }
+        default:
+          return "";
+      }
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!mediaHtml) return "";
+
+  return `<section class="qd-media"><h2>Media</h2><div class="qd-media-list">${mediaHtml}</div></section>`;
+}
+
+function buildSummaryDocument(summaryHtml, pageTitle, pageUrl, mediaItems) {
   const safeTitle = escapeHtml(pageTitle || "Summary");
   const safeUrl = escapeHtml(pageUrl || "");
+  const mediaSection = buildMediaSection(mediaItems);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -264,18 +398,53 @@ function buildSummaryDocument(summaryHtml, pageTitle, pageUrl) {
       border-radius: 6px;
     }
     em { color: inherit; opacity: 0.85; }
+    .qd-media {
+      margin-top: 26px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 14px;
+    }
+    .qd-media-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .qd-media-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .qd-media-item img,
+    .qd-media-item video,
+    .qd-media-item iframe {
+      display: block;
+      width: 100%;
+      max-height: 440px;
+      object-fit: contain;
+      background: #f8fafc;
+    }
+    .qd-media-item figcaption {
+      padding: 8px 10px 10px;
+      font-size: 13px;
+      color: #475569;
+    }
+    .qd-media-embed iframe {
+      border: 0;
+      aspect-ratio: 16 / 9;
+    }
   </style>
 </head>
 <body>
   <h1>Summary</h1>
   <div class="meta">${safeTitle}${safeUrl ? ` - <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open original</a>` : ""}</div>
-  <article class="qd-summary">${summaryHtml}</article>
+  <article class="qd-summary">${summaryHtml}${mediaSection}</article>
 </body>
 </html>`;
 }
 
-function openSummaryTab(summaryHtml, pageTitle, pageUrl) {
-  const doc = buildSummaryDocument(summaryHtml, pageTitle, pageUrl);
+function openSummaryTab(summaryHtml, pageTitle, pageUrl, mediaItems) {
+  const doc = buildSummaryDocument(summaryHtml, pageTitle, pageUrl, mediaItems);
   chrome.runtime.sendMessage({ type: "OPEN_SUMMARY_TAB", html: doc }, (resp) => {
     if (chrome.runtime.lastError || resp?.ok === false) {
       const url = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
