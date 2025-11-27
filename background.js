@@ -143,32 +143,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 async function openSummaryTabFromBackground(html) {
-  const tab = await chrome.tabs.create({ url: "about:blank" });
-  const target = { tabId: tab.id };
-
-  // Write summary document
-  await chrome.scripting.executeScript({
-    target,
-    world: "MAIN",
-    func: (docHtml) => {
-      document.open();
-      document.write(docHtml);
-      document.close();
-    },
-    args: [html]
-  });
-
-  // Inject styles first
-  await chrome.scripting.insertCSS({
-    target,
-    files: SUMMARY_STYLES
-  });
-
-  // Inject our content/overlay stack so the dictionary popup works on the summary tab.
-  await chrome.scripting.executeScript({
-    target,
-    files: SUMMARY_SCRIPTS
-  });
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  await chrome.tabs.create({ url });
+  // Give the new tab time to load before revoking
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
