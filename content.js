@@ -9,6 +9,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
     case "SHOW_API_KEY_PROMPT":
       handleApiKeyPromptRequest();
       break;
+    case "SHOW_API_OPTIONS_PROMPT":
+      handleApiOptionsPromptRequest();
+      break;
     case "CLEAR_STORED_DATA":
       handleClearStoredData(msg);
       break;
@@ -80,9 +83,38 @@ async function handleApiKeyPromptRequest() {
   }
 }
 
+async function handleApiOptionsPromptRequest() {
+  const prompt = window.__quickDefine?.promptForApiOptions;
+  const toast = window.__quickDefine?.showToast;
+
+  if (typeof prompt !== "function") {
+    if (typeof toast === "function") {
+      toast("API options prompt unavailable on this page.");
+    }
+    return;
+  }
+
+  try {
+    const result = await prompt();
+    if (result && typeof toast === "function") {
+      toast("API options saved.");
+    }
+  } catch (err) {
+    if (err && /cancelled/i.test(String(err.message ?? ""))) {
+      return;
+    }
+    if (typeof toast === "function") {
+      toast(err?.message || "Unable to save API options.");
+    }
+  }
+}
+
 function handleClearStoredData(msg) {
   if (window.__quickDefineConfig) {
     window.__quickDefineConfig.apiKey = null;
+    window.__quickDefineConfig.apiBase = null;
+    window.__quickDefineConfig.dictionaryModel = null;
+    window.__quickDefineConfig.summarizeModel = null;
   }
   const toast = window.__quickDefine?.showToast;
   if (typeof window.__quickDefine?.hideResult === "function") {

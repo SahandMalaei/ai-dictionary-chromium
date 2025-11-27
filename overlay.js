@@ -1,6 +1,9 @@
 (() => {
   if (window.__quickDefine) return; // singleton
 
+  const DEFAULT_API_BASE = "https://api.openai.com/v1";
+  const DEFAULT_MODEL = "gpt-5-nano";
+
   const rootHost = document.createElement('div');
   rootHost.id = 'quick-define-host';
   rootHost.style.all = 'initial';
@@ -80,6 +83,11 @@
       outline: 2px solid rgba(59, 130, 246, 0.35);
       outline-offset: 1px;
     }
+    .qd-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
     .qd-prompt .qd-error {
       min-height: 16px;
       font-size: 12px;
@@ -127,26 +135,36 @@
   promptForm.className = 'qd-prompt';
 
   const promptTitle = document.createElement('h2');
-  promptTitle.textContent = 'Enter OpenAI-Compatible API key';
   promptForm.appendChild(promptTitle);
 
   const promptDescription = document.createElement('p');
-  promptDescription.textContent = 'Enter your OpenRouter (or other OpenAI-compatible) API key so lookups can run.';
   promptForm.appendChild(promptDescription);
 
-  const promptLabel = document.createElement('label');
-  promptLabel.setAttribute('for', 'quick-define-api-key');
-  promptLabel.textContent = 'API key';
-  promptForm.appendChild(promptLabel);
+  const promptFields = {};
+  function createField(key, id, labelText, type, placeholder) {
+    const wrap = document.createElement('div');
+    wrap.className = 'qd-field';
+    const label = document.createElement('label');
+    label.setAttribute('for', id);
+    label.textContent = labelText;
+    const input = document.createElement('input');
+    input.id = id;
+    input.name = key;
+    input.type = type;
+    input.placeholder = placeholder;
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    promptForm.appendChild(wrap);
+    promptFields[key] = { wrap, label, input };
+    return promptFields[key];
+  }
 
-  const promptInput = document.createElement('input');
-  promptInput.type = 'password';
-  promptInput.id = 'quick-define-api-key';
-  promptInput.name = 'apiKey';
-  promptInput.placeholder = 'API Key...';
-  promptInput.autocomplete = 'off';
-  promptInput.spellcheck = false;
-  promptForm.appendChild(promptInput);
+  const fieldApiKey = createField('apiKey', 'quick-define-api-key', 'API key', 'password', 'API Key...');
+  const fieldApiBase = createField('apiBase', 'quick-define-api-base', 'API endpoint', 'text', 'https://api.openai.com/v1');
+  const fieldDictionaryModel = createField('dictionaryModel', 'quick-define-dictionary-model', 'Dictionary model', 'text', 'gpt-5-nano');
+  const fieldSummarizeModel = createField('summarizeModel', 'quick-define-summarize-model', 'Summarize model', 'text', 'gpt-5-nano');
 
   const promptError = document.createElement('div');
   promptError.className = 'qd-error';
@@ -165,11 +183,29 @@
   const promptSave = document.createElement('button');
   promptSave.type = 'submit';
   promptSave.className = 'qd-btn-primary';
-  promptSave.textContent = 'Save key';
+  promptSave.textContent = 'Save';
   promptActions.appendChild(promptSave);
 
   promptBackdrop.appendChild(promptForm);
   shadow.appendChild(promptBackdrop);
+
+  const PROMPT_MODE_API_KEY = 'api-key';
+  const PROMPT_MODE_API_OPTIONS = 'api-options';
+
+  const promptCopy = {
+    [PROMPT_MODE_API_KEY]: {
+      title: 'Enter OpenAI-Compatible API key',
+      description: 'Enter your OpenAI (or OpenRouter/other OpenAI-compatible) API key so lookups can run.',
+      fields: ['apiKey']
+    },
+    [PROMPT_MODE_API_OPTIONS]: {
+      title: 'Advanced API Options',
+      description: 'Set the API endpoint and per-feature models (OpenAI-compatible).',
+      fields: ['apiBase', 'dictionaryModel', 'summarizeModel']
+    }
+  };
+
+  let promptMode = PROMPT_MODE_API_KEY;
 
   function placeAtRect(rect) {
     const margin = 8;
@@ -209,7 +245,7 @@
     setTimeout(hide, 1200);
   }
 
-  const SAVE_BUTTON_DEFAULT = 'Save key';
+  const SAVE_BUTTON_DEFAULT = 'Save';
   const SAVE_BUTTON_BUSY = 'Saving...';
   let promptState = null;
 
@@ -217,18 +253,42 @@
     return !promptBackdrop.classList.contains('qd-hide');
   }
 
+  function showFields(fieldsToShow = []) {
+    const visible = new Set(fieldsToShow);
+    Object.entries(promptFields).forEach(([key, field]) => {
+      if (visible.has(key)) {
+        field.wrap.classList.remove('qd-hide');
+      } else {
+        field.wrap.classList.add('qd-hide');
+      }
+    });
+  }
+
+  function applyPromptCopy(mode) {
+    promptMode = mode;
+    const copy = promptCopy[mode] || promptCopy[PROMPT_MODE_API_KEY];
+    promptTitle.textContent = copy.title;
+    promptDescription.textContent = copy.description;
+    showFields(copy.fields || []);
+  }
+
   function setPromptBusy(busy) {
-    promptInput.disabled = busy;
+    Object.values(promptFields).forEach(({ input }) => {
+      input.disabled = busy;
+    });
     promptSave.disabled = busy;
     promptCancel.disabled = busy;
     promptSave.textContent = busy ? SAVE_BUTTON_BUSY : SAVE_BUTTON_DEFAULT;
   }
 
-  function resetPromptForm() {
+  function resetPromptForm(mode = promptMode) {
+    applyPromptCopy(mode);
     setPromptBusy(false);
     promptError.textContent = "";
+    Object.values(promptFields).forEach(({ input }) => {
+      input.value = "";
+    });
     promptForm.reset();
-    promptInput.value = "";
   }
 
   function cancelPrompt(reason) {
@@ -238,31 +298,90 @@
     resetPromptForm();
     promptBackdrop.classList.add('qd-hide');
     if (state && state.reject) {
-      state.reject(reason || new Error("API key entry cancelled"));
+      state.reject(reason || new Error("Entry cancelled"));
     }
   }
 
-  function finishPrompt(key) {
+  function finishPrompt(value) {
     const state = promptState;
     promptState = null;
     resetPromptForm();
     promptBackdrop.classList.add('qd-hide');
     if (window.__quickDefineConfig) {
-      window.__quickDefineConfig.apiKey = key;
+      if (promptMode === PROMPT_MODE_API_OPTIONS && value && typeof value === "object") {
+        window.__quickDefineConfig.apiBase = value.apiBase;
+        window.__quickDefineConfig.dictionaryModel = value.dictionaryModel;
+        window.__quickDefineConfig.summarizeModel = value.summarizeModel;
+      } else {
+        window.__quickDefineConfig.apiKey = value;
+      }
     }
-    if (state && state.resolve) state.resolve(key);
+    if (state && state.resolve) state.resolve(value);
   }
 
   function handlePromptSubmit() {
-    const key = promptInput.value.trim();
-    if (!key) {
-      promptError.textContent = "Please enter a valid API key.";
-      promptInput.focus();
+    promptError.textContent = "";
+    setPromptBusy(true);
+
+    if (promptMode === PROMPT_MODE_API_OPTIONS) {
+      const apiBase = promptFields.apiBase.input.value.trim();
+      const dictionaryModel = promptFields.dictionaryModel.input.value.trim();
+      const summarizeModel = promptFields.summarizeModel.input.value.trim();
+
+      if (!apiBase) {
+        promptError.textContent = "Enter an HTTPS endpoint, e.g. https://api.openai.com/v1";
+        setPromptBusy(false);
+        promptFields.apiBase.input.focus();
+        return;
+      }
+      if (!/^https?:\/\//i.test(apiBase)) {
+        promptError.textContent = "Endpoint must start with http(s)://";
+        setPromptBusy(false);
+        promptFields.apiBase.input.focus();
+        return;
+      }
+      if (!dictionaryModel) {
+        promptError.textContent = "Enter a model for dictionary lookups.";
+        setPromptBusy(false);
+        promptFields.dictionaryModel.input.focus();
+        return;
+      }
+      if (!summarizeModel) {
+        promptError.textContent = "Enter a model for summaries.";
+        setPromptBusy(false);
+        promptFields.summarizeModel.input.focus();
+        return;
+      }
+
+      const normalizedBase = apiBase.replace(/\/+$/, "");
+      const payload = {
+        apiBase: normalizedBase,
+        dictionaryModel,
+        summarizeModel
+      };
+      const applyOptions = () => finishPrompt(payload);
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set(payload, () => {
+          if (chrome.runtime?.lastError) {
+            promptError.textContent = chrome.runtime.lastError.message || "Unable to save API options.";
+            setPromptBusy(false);
+            return;
+          }
+          applyOptions();
+        });
+      } else {
+        applyOptions();
+      }
       return;
     }
 
-    promptError.textContent = "";
-    setPromptBusy(true);
+    const key = promptFields.apiKey.input.value.trim();
+    if (!key) {
+      promptError.textContent = "Please enter a valid API key.";
+      setPromptBusy(false);
+      promptFields.apiKey.input.focus();
+      return;
+    }
 
     const applyKey = () => finishPrompt(key);
     if (chrome?.storage?.local) {
@@ -287,12 +406,12 @@
     }
 
     hide();
-    resetPromptForm();
+    resetPromptForm(PROMPT_MODE_API_KEY);
     promptBackdrop.classList.remove('qd-hide');
 
     const existingKey = window.__quickDefineConfig?.apiKey || "";
     if (existingKey) {
-      promptInput.value = existingKey;
+      promptFields.apiKey.input.value = existingKey;
     }
 
     const state = {};
@@ -303,9 +422,42 @@
     promptState = state;
 
     requestAnimationFrame(() => {
-      promptInput.focus();
-      if (promptInput.value) {
-        promptInput.select();
+      promptFields.apiKey.input.focus();
+      if (promptFields.apiKey.input.value) {
+        promptFields.apiKey.input.select();
+      }
+    });
+
+    return state.promise;
+  }
+
+  function promptForApiOptions() {
+    if (promptState && promptState.promise) {
+      return promptState.promise;
+    }
+
+    hide();
+    resetPromptForm(PROMPT_MODE_API_OPTIONS);
+    promptBackdrop.classList.remove('qd-hide');
+
+    const cfg = window.__quickDefineConfig || {};
+    promptFields.apiBase.input.value = cfg.apiBase || DEFAULT_API_BASE;
+    promptFields.dictionaryModel.input.value =
+      cfg.dictionaryModel || cfg.model || DEFAULT_MODEL;
+    promptFields.summarizeModel.input.value =
+      cfg.summarizeModel || cfg.model || DEFAULT_MODEL;
+
+    const state = {};
+    state.promise = new Promise((resolve, reject) => {
+      state.resolve = resolve;
+      state.reject = reject;
+    });
+    promptState = state;
+
+    requestAnimationFrame(() => {
+      promptFields.apiBase.input.focus();
+      if (promptFields.apiBase.input.value) {
+        promptFields.apiBase.input.select();
       }
     });
 
@@ -316,16 +468,16 @@
     e.preventDefault();
     handlePromptSubmit();
   });
-  promptCancel.addEventListener('click', () => cancelPrompt(new Error("API key entry cancelled")));
+  promptCancel.addEventListener('click', () => cancelPrompt(new Error("Entry cancelled")));
   promptBackdrop.addEventListener('mousedown', (e) => {
-    if (e.target === promptBackdrop) cancelPrompt(new Error("API key entry cancelled"));
+    if (e.target === promptBackdrop) cancelPrompt(new Error("Entry cancelled"));
   });
 
   // Dismiss on Esc or outside click
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (isPromptVisible()) {
-        cancelPrompt(new Error("API key entry cancelled"));
+        cancelPrompt(new Error("Entry cancelled"));
       } else {
         hide();
       }
@@ -335,7 +487,7 @@
     // if click is outside host/shadow, hide
     if (!rootHost.contains(e.target)) {
       if (isPromptVisible()) {
-        cancelPrompt(new Error("API key entry cancelled"));
+        cancelPrompt(new Error("Entry cancelled"));
       } else {
         hide();
       }
@@ -348,6 +500,7 @@
     showToast,
     hideResult: hide,
     promptForApiKey,
+    promptForApiOptions,
     lastMouse: null,
     apiLookup: null // set by api.js
   };

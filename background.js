@@ -1,5 +1,6 @@
 const MENU_SELECTION = "quick-define-selection";
 const MENU_SET_API_KEY = "quick-define-set-api-key";
+const MENU_API_OPTIONS = "quick-define-api-options";
 const MENU_CLEAR_DATA = "quick-define-clear-data";
 const MENU_SUMMARIZE = "quick-define-summarize-page";
 const SUMMARY_SCRIPTS = ["config.js", "overlay.js", "api.js", "content.js"];
@@ -28,6 +29,11 @@ function registerContextMenus() {
     createMenuItem({
       id: MENU_SET_API_KEY,
       title: "Set API Key",
+      contexts: ["action"]
+    });
+    createMenuItem({
+      id: MENU_API_OPTIONS,
+      title: "Advanced API Options",
       contexts: ["action"]
     });
     createMenuItem({
@@ -101,8 +107,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         });
       }
       break;
+    case MENU_API_OPTIONS:
+      if (tab?.id) {
+        await sendMessageToTab(tab.id, {
+          type: "SHOW_API_OPTIONS_PROMPT",
+          source: "contextMenu"
+        });
+      }
+      break;
     case MENU_CLEAR_DATA:
-      chrome.storage.local.remove(["apiKey", "openRouterApiKey", "geminiApiKey"], () => {
+      chrome.storage.local.remove(
+        ["apiKey", "openRouterApiKey", "geminiApiKey", "apiBase", "dictionaryModel", "summarizeModel"],
+        () => {
         const success = !chrome.runtime.lastError;
         const payload = {
           type: "CLEAR_STORED_DATA",

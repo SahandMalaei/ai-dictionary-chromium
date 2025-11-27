@@ -1,6 +1,6 @@
 (() => {
-  const DEFAULT_API_BASE = "https://openrouter.ai/api/v1";
-  const DEFAULT_MODEL = "google/gemini-2.5-flash-lite";
+  const DEFAULT_API_BASE = "https://api.openai.com/v1";
+  const DEFAULT_MODEL = "gpt-5-nano";
 
   function readStoredApiKey() {
     return new Promise((resolve) => {
@@ -52,8 +52,12 @@
     return base.replace(/\/+$/, "");
   }
 
-  function ensureModel(config) {
-    return config?.model || DEFAULT_MODEL;
+  function ensureDictionaryModel(config) {
+    return config?.dictionaryModel || config?.model || DEFAULT_MODEL;
+  }
+
+  function ensureSummarizeModel(config) {
+    return config?.summarizeModel || config?.model || DEFAULT_MODEL;
   }
 
   function buildMessages(focus, context, pageTitle, targetLanguage) {
@@ -141,7 +145,7 @@
     const targetLanguage = config?.targetLanguage || "English - United States";
     const apiKey = await ensureApiKey(config);
     const apiBase = ensureApiBase(config);
-    const model = ensureModel(config);
+    const model = ensureDictionaryModel(config);
 
     const payload = {
       model,
@@ -180,7 +184,7 @@
     const targetLanguage = config?.targetLanguage || "English - United States";
     const apiKey = await ensureApiKey(config);
     const apiBase = ensureApiBase(config);
-    const model = ensureModel(config);
+    const model = ensureSummarizeModel(config);
 
     const payload = {
       model,
