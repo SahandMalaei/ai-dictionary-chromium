@@ -81,9 +81,18 @@ async function triggerDefineSelection() {
   }
 }
 
+async function triggerSummarizePage() {
+  const tab = await getActiveTab();
+  if (tab?.id) {
+    await sendMessageToTab(tab.id, { type: "SUMMARIZE_PAGE" });
+  }
+}
+
 chrome.commands.onCommand.addListener(async (cmd) => {
   if (cmd === "define-selection") {
     await triggerDefineSelection();
+  } else if (cmd === "summarize-page") {
+    await triggerSummarizePage();
   }
 });
 

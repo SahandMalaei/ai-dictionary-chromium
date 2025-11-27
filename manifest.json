@@ -38,6 +38,13 @@
         "mac": "Command+Shift+L"
       },
       "description": "Show dictionary popup for current selection"
+    },
+    "summarize-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Summarize the current page"
     }
   }
 }
