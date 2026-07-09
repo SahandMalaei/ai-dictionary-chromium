@@ -62,10 +62,14 @@ async function getActiveTab() {
   return tabs[0];
 }
 
-async function sendMessageToTab(tabId, message) {
+async function sendMessageToTab(tabId, message, options) {
   if (!tabId) return;
   try {
-    await chrome.tabs.sendMessage(tabId, message);
+    if (options) {
+      await chrome.tabs.sendMessage(tabId, message, options);
+    } else {
+      await chrome.tabs.sendMessage(tabId, message);
+    }
   } catch (err) {
     // Ignore missing receivers (e.g., chrome:// pages)
     if (!String(err?.message).includes("Receiving end does not exist")) {
@@ -77,7 +81,11 @@ async function sendMessageToTab(tabId, message) {
 async function triggerDefineSelection() {
   const tab = await getActiveTab();
   if (tab?.id) {
-    await sendMessageToTab(tab.id, { type: "DEFINE_SELECTION" });
+    await sendMessageToTab(tab.id, {
+      type: "DEFINE_SELECTION",
+      showNoSelection: false,
+      source: "command"
+    });
   }
 }
 
@@ -100,7 +108,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   switch (info.menuItemId) {
     case MENU_SELECTION:
       if (tab?.id) {
-        await sendMessageToTab(tab.id, { type: "DEFINE_SELECTION" });
+        const options = Number.isInteger(info.frameId) ? { frameId: info.frameId } : undefined;
+        await sendMessageToTab(tab.id, {
+          type: "DEFINE_SELECTION",
+          showNoSelection: true,
+          source: "contextMenu"
+        }, options);
       }
       break;
     case MENU_SUMMARIZE:

@@ -1,40 +1,54 @@
-// Message entrypoint
-chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
-  if (!msg || !msg.type) return;
-  const isTop = window === window.top;
-  switch (msg.type) {
-    case "DEFINE_SELECTION":
-      handleDefine();
-      break;
-    case "SHOW_API_KEY_PROMPT":
-      handleApiKeyPromptRequest();
-      break;
-    case "SHOW_API_OPTIONS_PROMPT":
-      handleApiOptionsPromptRequest();
-      break;
-    case "CLEAR_STORED_DATA":
-      handleClearStoredData(msg);
-      break;
-    case "SUMMARIZE_PAGE":
-      if (isTop) {
-        handleSummarizePage();
-      }
-      break;
-    default:
-      break;
-  }
-});
+const quickDefineContentState =
+  window.__quickDefineContentState ||
+  (window.__quickDefineContentState = {
+    listenerInstalled: false,
+    mouseTrackingInstalled: false
+  });
 
-async function handleDefine() {
+// Message entrypoint
+if (!quickDefineContentState.listenerInstalled) {
+  quickDefineContentState.listenerInstalled = true;
+  chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
+    if (!msg || !msg.type) return;
+    const isTop = window === window.top;
+    switch (msg.type) {
+      case "DEFINE_SELECTION":
+        handleDefine({ showNoSelection: msg.showNoSelection !== false });
+        break;
+      case "SHOW_API_KEY_PROMPT":
+        handleApiKeyPromptRequest();
+        break;
+      case "SHOW_API_OPTIONS_PROMPT":
+        handleApiOptionsPromptRequest();
+        break;
+      case "CLEAR_STORED_DATA":
+        handleClearStoredData(msg);
+        break;
+      case "SUMMARIZE_PAGE":
+        if (isTop) {
+          handleSummarizePage();
+        }
+        break;
+      default:
+        break;
+    }
+  });
+}
+
+async function handleDefine({ showNoSelection = true } = {}) {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) {
-    window.__quickDefine.showToast("No selection.");
+    if (showNoSelection) {
+      window.__quickDefine.showToast("No selection.");
+    }
     return;
   }
   const range = sel.getRangeAt(0);
   const focus = sel.toString().trim();
   if (!focus) {
-    window.__quickDefine.showToast("No selection.");
+    if (showNoSelection) {
+      window.__quickDefine.showToast("No selection.");
+    }
     return;
   }
 
@@ -183,9 +197,12 @@ function getRangeRect(range) {
 }
 
 // Track mouse for better fallback placement
-window.addEventListener("mousemove", (e) => {
-  window.__quickDefine.lastMouse = {x: e.clientX, y: e.clientY};
-}, {passive: true});
+if (!quickDefineContentState.mouseTrackingInstalled) {
+  quickDefineContentState.mouseTrackingInstalled = true;
+  window.addEventListener("mousemove", (e) => {
+    window.__quickDefine.lastMouse = {x: e.clientX, y: e.clientY};
+  }, {passive: true});
+}
 
 // Collect a limited number of words on each side within the same text nodes
 function getSurroundingText(range, wordCount) {
